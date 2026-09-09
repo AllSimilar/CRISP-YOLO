@@ -1,0 +1,10 @@
+path: 
+
+train: train/images/
+val: val/images/ # val images (relative to 'path') 15062 images
+test: test/images/ # test images (optional) 
+
+# Classes
+nc: 3
+names: ['car', 'truck', 'bus']
+hazy2clear: ["/images/", "/ori_images/"]

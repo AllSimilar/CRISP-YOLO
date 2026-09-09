@@ -1,0 +1,9 @@
+path: 
+
+train: train/images/
+val: RDDTS/images/ # val images (relative to 'path') 15062 images
+test: RDDTS/images/ # test images (optional) 
+
+# Classes
+nc: 3
+names: ['car', 'truck', 'bus']

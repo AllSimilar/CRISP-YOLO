@@ -1,0 +1,46 @@
+# cen-yolo.yaml
+nc: 3
+scale: s
+end2end: True
+reg_max: 1
+scales:
+  s: [0.50, 0.50, 1024]
+
+backbone:
+  - [-1, 1, Conv, [64, 3, 2]]                # 0-P1/2
+  - [-1, 1, Conv, [128, 3, 2]]               # 1-P2/4
+  - [-1, 2, C3k2, [256, False, 0.25]]        # 2
+  - [-1, 1, Conv, [256, 3, 2]]               # 3-P3/8
+  - [-1, 2, C3k2, [512, False, 0.25]]        # 4   <- P3 source
+  - [-1, 1, Conv, [512, 3, 2]]               # 5-P4/16
+  - [-1, 2, C3k2, [512, True]]               # 6   <- P4 source
+  - [-1, 1, Conv, [1024, 3, 2]]              # 7-P5/32
+  - [-1, 2, C3k2, [1024, True]]              # 8
+  - [-1, 1, SPPF, [1024, 5, 3, True]]        # 9
+  - [-1, 2, C2PSA, [1024]]                   # 10  <- P5 source
+ 
+# YOLO26 head + dehazing branch
+head:
+  - [-1, 1, DySample, [2]]                     # 11
+  - [[-1, 6], 1, Concat, [1]]                             # 12  cat backbone P4
+  - [-1, 2, C3k2, [512, True]]                            # 13
+ 
+  - [-1, 1, DySample, [2]]                      # 14
+  - [[-1, 4], 1, Concat, [1]]                             # 15  cat backbone P3
+  - [-1, 2, C3k2, [256, True]]                            # 16  (P3/8-small)
+ 
+  - [-1, 1, Conv, [256, 3, 2]]                            # 17
+  - [[-1, 13, 6], 1, Concat, [1]]                         # 18  cat head P4
+  - [-1, 2, C3k2, [512, True]]                            # 19  (P4/16-medium)
+ 
+  - [-1, 1, Conv, [512, 3, 2]]                            # 20
+  - [[-1, 10, 8], 1, Concat, [1]]                         # 21  cat head P5
+  - [-1, 1, SCC3k2, [1024, True, 0.5, True]]                # 22  (P5/32-large)
+ 
+  # ----- Dehazing branch (auxiliary, image reconstruction) -----
+  # Takes backbone P3 (4), P4 (6), P5 (10) and outputs a 3-channel image.
+  - [[4, 6, 10], 1, Decoder, [3, True]]                   # 23  dehazed RGB
+ 
+  # Detect uses the original three FPN levels (16, 19, 22). Layer 23 is collected
+  # by the custom DehazeDetectionModel for the auxiliary loss.
+  - [[16, 19, 22], 1, Detect, [nc]]                       # 24  Detect(P3, P4, P5)

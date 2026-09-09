@@ -1,0 +1,9 @@
+path: 
+## RDDTS
+train: train/images/
+val: test/images/
+test: test/images/ 
+
+# Classes
+nc: 3
+names: ['car', 'truck', 'bus']
