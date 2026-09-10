@@ -8,7 +8,7 @@ from copy import deepcopy
 from pathlib import Path
 
 import torch
-import torch.nn as nn
+from torch import nn
 
 from ultralytics.nn.autobackend import check_class_names
 from ultralytics.nn.modules import (
@@ -44,9 +44,11 @@ from ultralytics.nn.modules import (
     Conv,
     Conv2,
     ConvTranspose,
+    Decoder,
     Detect,
     DWConv,
     DWConvTranspose2d,
+    DySample,
     Focus,
     GhostBottleneck,
     GhostConv,
@@ -63,19 +65,17 @@ from ultralytics.nn.modules import (
     RepVGGDW,
     ResNetLayer,
     RTDETRDecoder,
+    SCC3k2,
     SCDown,
     Segment,
     Segment26,
     TorchVision,
+    TransposeDecoder,
     WorldDetect,
     YOLOEDetect,
     YOLOESegment,
     YOLOESegment26,
     v10Detect,
-    SCC3k2,
-    TransposeDecoder,
-    Decoder,
-    DySample
 )
 from ultralytics.utils import DEFAULT_CFG_DICT, LOGGER, WINDOWS, YAML, colorstr, emojis
 from ultralytics.utils.checks import check_requirements, check_suffix, check_yaml
@@ -1381,11 +1381,9 @@ class SafeClass:
 
     def __init__(self, *args, **kwargs):
         """Initialize SafeClass instance, ignoring all arguments."""
-        pass
 
     def __call__(self, *args, **kwargs):
         """Run SafeClass instance, ignoring all arguments."""
-        pass
 
 
 class SafeUnpickler(pickle.Unpickler):
@@ -1650,7 +1648,7 @@ def parse_model(d, ch, verbose=True):
         n = n_ = max(round(n * depth), 1) if n > 1 else n  # depth gain
         if m in base_modules:
             # c1, c2 = ch[f], args[0]
-            c1, c2 = (ch[f] if isinstance(f, int) else ch[f[0]]), args[0] 
+            c1, c2 = (ch[f] if isinstance(f, int) else ch[f[0]]), args[0]
             if c2 != nc:  # if c2 != nc (e.g., Classify() output)
                 c2 = make_divisible(min(c2, max_channels) * width, 8)
             if m is C2fAttn:  # set 1) embed channels and 2) num heads
@@ -1684,15 +1682,15 @@ def parse_model(d, ch, verbose=True):
         elif m is torch.nn.BatchNorm2d:
             args = [ch[f]]
         # 添加DySample-start
-        elif m is DySample:                          
-            c2 = ch[f]                        
-            args = [ch[f], *args]  
-        # 添加DySample-end  
+        elif m is DySample:
+            c2 = ch[f]
+            args = [ch[f], *args]
+        # 添加DySample-end
         # 添加Decoder-start
         elif m is Decoder or m is TransposeDecoder:
-            c1 = tuple(ch[x] for x in f)             # (c_p3, c_p4, c_p5)
-            args = [c1, *args]                       # 把 ch 元组塞到 args 前面
-            c2 = args[1]                             # Decoder 输出通道，仅用于打印
+            c1 = tuple(ch[x] for x in f)  # (c_p3, c_p4, c_p5)
+            args = [c1, *args]  # 把 ch 元组塞到 args 前面
+            c2 = args[1]  # Decoder 输出通道，仅用于打印
         # 添加Decoder-end
         elif m is Concat:
             c2 = sum(ch[x] for x in f)
