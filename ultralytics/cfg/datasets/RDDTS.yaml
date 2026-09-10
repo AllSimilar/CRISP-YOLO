@@ -1,9 +1,9 @@
-path: 
+path:
 ## RDDTS
 train: train/images/
 val: test/images/
-test: test/images/ 
+test: test/images/
 
 # Classes
 nc: 3
-names: ['car', 'truck', 'bus']
+names: ["car", "truck", "bus"]
