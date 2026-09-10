@@ -1,27 +1,28 @@
 """DehazeDetectionModel: YOLO26 + auxiliary image-reconstruction branch."""
-from __future__ import annotations
-import torch
-import torch.nn as nn
 
-from ultralytics.nn.tasks import DetectionModel
+from __future__ import annotations
+
+import torch
+from torch import nn
+
 from ultralytics.nn.modules.dehaze import Decoder, TransposeDecoder
+from ultralytics.nn.tasks import DetectionModel
 
 
 class DehazeDetectionModel(DetectionModel):
     """YOLO26 detection model with an auxiliary dehazing decoder branch."""
 
     def __init__(self, cfg="yolo26-dehaze.yaml", ch=3, nc=None, verbose=True):
-        # NOTE: dehaze_idx / _dehaze_out must be initialised BEFORE super().__init__()
+        # NOTE: dehaze_idx / _dehaze_out must be initialized BEFORE super().__init__()
         # because the parent constructor triggers _predict_once internally (stride
         # probing), which would raise AttributeError otherwise.
-        self.dehaze_idx = -1       # sentinel: "not found yet"
+        self.dehaze_idx = -1  # sentinel: "not found yet"
         self._dehaze_out = None
         super().__init__(cfg=cfg, ch=ch, nc=nc, verbose=verbose)
         # Now self.model is fully built — locate the single restoration layer.
         # Both Decoder (Converse2D) and TransposeDecoder (matched transposed-conv
         # control, see reviewer request) are valid restoration branches.
-        idxs = [i for i, m in enumerate(self.model)
-                if isinstance(m, (Decoder, TransposeDecoder))]
+        idxs = [i for i, m in enumerate(self.model) if isinstance(m, (Decoder, TransposeDecoder))]
         assert len(idxs) == 1, f"Expected exactly one restoration layer, got {len(idxs)}"
         self.dehaze_idx = idxs[0]
 
@@ -30,7 +31,7 @@ class DehazeDetectionModel(DetectionModel):
         """Always 4 loss columns: box, cls, dfl, dehaze.
 
         Overriding this ensures that both the trainer's tloss accumulator and the
-        validator's self.loss are consistently initialised to size 4, preventing
+        validator's self.loss are consistently initialized to size 4, preventing
         the shape-mismatch RuntimeError that occurs when loss() returns a different
         number of items during training vs. validation.
         """
@@ -53,6 +54,7 @@ class DehazeDetectionModel(DetectionModel):
             y.append(x if m.i in self.save else None)
             if visualize:
                 from ultralytics.utils.plotting import feature_visualization
+
                 feature_visualization(x, m.type, m.i, save_dir=visualize)
             if embed and m.i in embed:
                 embeddings.append(nn.functional.adaptive_avg_pool2d(x, (1, 1)).squeeze(-1).squeeze(-1))
@@ -73,7 +75,7 @@ class DehazeDetectionModel(DetectionModel):
         # (4 entries), so every call to loss() must return exactly 4 items.
         if self.training and self._dehaze_out is not None and "clear_img" in batch:
             target = batch["clear_img"].to(self._dehaze_out.device)
-            target = target * 2.0 - 1.0       # Decoder 输出在 (-1, 1)
+            target = target * 2.0 - 1.0  # Decoder 输出在 (-1, 1)
             aux = nn.functional.l1_loss(self._dehaze_out, target)
             lam = getattr(self.args, "dehaze_weight", 0.1)
             det_loss = det_loss + lam * aux
