@@ -319,12 +319,12 @@ class YOLODataset(BaseDataset):
         _, H, W = label["img"].shape  # CHW tensor
         h0, w0 = clear.shape[:2]
         r = min(H / h0, W / w0)
-        nh, nw = int(round(h0 * r)), int(round(w0 * r))
+        nh, nw = round(h0 * r), round(w0 * r)
         clear = cv2.resize(clear, (nw, nh), interpolation=cv2.INTER_LINEAR)
         canvas = np.full((H, W, 3), 114, dtype=np.uint8)
         top = (H - nh) // 2
         left = (W - nw) // 2
-        canvas[top:top + nh, left:left + nw] = clear
+        canvas[top : top + nh, left : left + nw] = clear
 
         # Normalize to [0,1] CHW tensor, same scale as label['img'] (Format divides by 255)
         clear_t = torch.from_numpy(canvas.transpose(2, 0, 1).copy()).contiguous().float() / 255.0
